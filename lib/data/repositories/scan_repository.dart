@@ -48,4 +48,50 @@ class ScanRepository {
 
     return file.path;
   }
+  Future<String> createMultiPagePdf({
+    required List<File> images,
+    required String fileName,
+  }) async {
+
+    final pdf = pw.Document();
+
+    for (final imageFile in images) {
+      final imageBytes = await imageFile.readAsBytes();
+      final image = pw.MemoryImage(imageBytes);
+
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (context) {
+            return pw.Center(
+              child: pw.Image(
+                image,
+                fit: pw.BoxFit.contain,
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    final bytes = await pdf.save();
+
+    final directory =
+    await getExternalStorageDirectory();
+
+    final folder =
+    Directory("${directory!.path}/ScanVault");
+
+    if (!await folder.exists()) {
+      await folder.create(recursive: true);
+    }
+
+    final filePath =
+        "${folder.path}/$fileName.pdf";
+
+    final file = File(filePath);
+    await file.writeAsBytes(bytes);
+
+    return file.path;
+  }
 }
