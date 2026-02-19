@@ -73,27 +73,77 @@ class _ScannerScreenState extends State<ScannerScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _header(context),
-            _viewFinder(),
-            _modes(),
 
-            // Page counter
-            if (capturedImages.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  "${capturedImages.length} page(s) captured",
-                  style: AppTextStyles.subtitle,
+            _header(context),
+
+            // Camera preview takes remaining space
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    _viewFinder(),
+                    _modes(),
+
+                    if (capturedImages.isNotEmpty)
+                      SizedBox(
+                        height: 100,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          itemCount: capturedImages.length,
+                          itemBuilder: (_, index) {
+                            return Stack(
+                              children: [
+                                Container(
+                                  margin: const EdgeInsets.only(right: 8),
+                                  width: 70,
+                                  height: 90,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    image: DecorationImage(
+                                      image: FileImage(capturedImages[index]),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 2,
+                                  right: 10,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        capturedImages.removeAt(index);
+                                      });
+                                    },
+                                    child: const CircleAvatar(
+                                      radius: 10,
+                                      backgroundColor: Colors.red,
+                                      child: Icon(Icons.close,
+                                          size: 12, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+
+                    const SizedBox(height: 10),
+
+                    _controls(context),
+
+                    _tips(),
+                  ],
                 ),
               ),
-
-            _controls(context),
-            _tips(),
+            ),
           ],
         ),
       ),
     );
   }
+
 
   Widget _header(BuildContext context) {
     return Padding(
@@ -114,11 +164,22 @@ class _ScannerScreenState extends State<ScannerScreen> {
             ),
           ),
           const SizedBox(width: 10),
-          Text("Document Scanner", style: AppTextStyles.title),
+          Expanded(
+            child: Text(
+              "Document Scanner",
+              style: AppTextStyles.title,
+            ),
+          ),
+          if (capturedImages.isNotEmpty)
+            ElevatedButton(
+              onPressed: () => _savePdf(context),
+              child: Text("Export (${capturedImages.length})"),
+            ),
         ],
       ),
     );
   }
+
 
   Widget _viewFinder() {
     return Container(
@@ -226,43 +287,41 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Widget _controls(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-          vertical: 18, horizontal: 20),
-      child: Column(
+        vertical: 18,
+        horizontal: 20,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (capturedImages.isNotEmpty)
-            ElevatedButton(
-              onPressed: () =>
-                  _savePdf(context),
-              child: Text(
-                "Save PDF (${capturedImages.length} pages)",
-              ),
-            ),
-          const SizedBox(height: 12),
+
+          // Capture Button
           GestureDetector(
             onTap: _captureImage,
             child: Container(
               width: 70,
               height: 70,
-              decoration: BoxDecoration(
-                gradient:
-                const LinearGradient(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
                   colors: [
                     AppColors.accent,
-                    AppColors.accent2
+                    AppColors.accent2,
                   ],
                 ),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                  Icons.camera_alt,
-                  size: 28,
-                  color: Colors.white),
+                Icons.camera_alt,
+                size: 28,
+                color: Colors.white,
+              ),
             ),
           ),
+
         ],
       ),
     );
   }
+
 
   Widget _tips() {
     return Padding(
