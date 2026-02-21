@@ -1,13 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../data/repositories/scan_repository.dart';
 import '../../data/repositories/document_repository.dart';
 import '../../data/models/document_model.dart';
+import '../../main.dart';
+import 'edit_screen.dart';
+
+
 
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
@@ -18,8 +21,8 @@ class ScannerScreen extends StatefulWidget {
 
 class _ScannerScreenState extends State<ScannerScreen> {
 
-  CameraController? _controller;
-  Future<void>? _initializeControllerFuture;
+  late CameraController _controller;
+  late Future<void> _initializeControllerFuture;
 
   List<File> capturedImages = [];
 
@@ -30,42 +33,58 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    final camera = cameras.first;
+
 
     _controller = CameraController(
-      camera,
+      cameras.first,
       ResolutionPreset.high,
       enableAudio: false,
     );
 
-    _initializeControllerFuture = _controller!.initialize();
-    setState(() {});
+    _initializeControllerFuture = _controller.initialize();
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
-  // Capture Image
   Future<void> _captureImage() async {
     try {
       await _initializeControllerFuture;
 
-      final image = await _controller!.takePicture();
+      final image = await _controller.takePicture();
 
-      setState(() {
-        capturedImages.add(File(image.path));
-      });
+      if (!mounted) return;
+
+      // Navigate to Edit Screen
+      final File? editedImage = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => EditScreen(
+            imageFile: File(image.path),
+          ),
+        ),
+      );
+
+      // If user pressed Continue
+      if (editedImage != null) {
+        setState(() {
+          capturedImages.add(editedImage);
+        });
+      }
 
     } catch (e) {
       print(e);
     }
   }
 
-  // Save Multi Page PDF
+
   Future<void> _savePdf() async {
     if (capturedImages.isEmpty) return;
 
@@ -113,13 +132,22 @@ class _ScannerScreenState extends State<ScannerScreen> {
               child: Stack(
                 children: [
 
-                  // Camera Preview
+                  // 🔥 REAL CAMERA PREVIEW
                   FutureBuilder(
                     future: _initializeControllerFuture,
                     builder: (context, snapshot) {
-                      if (snapshot.connectionState ==
-                          ConnectionState.done) {
-                        return CameraPreview(_controller!);
+                      if (snapshot.connectionState == ConnectionState.done) {
+                        return AspectRatio(
+                          aspectRatio: _controller.value.aspectRatio,
+                          child: CameraPreview(_controller),
+                        );
+                      } else if (snapshot.hasError) {
+                        return Center(
+                          child: Text(
+                            'Camera error: ${snapshot.error}',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        );
                       } else {
                         return const Center(
                           child: CircularProgressIndicator(),
@@ -140,7 +168,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
                         MainAxisAlignment.center,
                         children: [
 
-                          // Capture Button
                           GestureDetector(
                             onTap: _captureImage,
                             child: Container(
